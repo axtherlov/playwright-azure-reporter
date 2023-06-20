@@ -738,8 +738,7 @@ class AzureDevOpsReporter implements Reporter {
         }
       }      
     } catch (error: any) { 
-      this._log(chalk.red(`error in _setTestcaseAsAutomated `));
-      this._log(chalk.red(error));
+      this._warning(chalk.red(error.message));
     }    
   }
 
