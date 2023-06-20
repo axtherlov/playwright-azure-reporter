@@ -710,7 +710,7 @@ class AzureDevOpsReporter implements Reporter {
               {
                 op: 'add',
                 path: '/fields/Microsoft.VSTS.TCM.AutomatedTestStorage',
-                value: 'DispatchUI'
+                value: this._projectName
               }
           ]
           await this._workItemApi.updateWorkItem({}, patchDocument, workItem.id as number)
@@ -727,7 +727,7 @@ class AzureDevOpsReporter implements Reporter {
                 {
                   op: 'replace',
                   path: '/fields/Microsoft.VSTS.TCM.AutomatedTestStorage',
-                  value: 'DispatchUI'
+                  value: this._projectName
                 }
               ]
               
