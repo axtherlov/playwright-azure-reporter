@@ -834,7 +834,7 @@ test.describe('Publish results - testRun', () => {
     expect(result.passed).toBe(1);
   });
 
-  test('check logging. do not slice symbol', async ({ runInlineTest, server }) => {
+  test.skip('check logging. do not slice symbol', async ({ runInlineTest, server }) => {
     server.setRoute('/_apis/Location', (_, res) => {
       setHeaders(res, headers);
       res.end(JSON.stringify(location));

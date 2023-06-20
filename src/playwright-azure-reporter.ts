@@ -9,6 +9,7 @@ import { TeamProject } from 'azure-devops-node-api/interfaces/CoreInterfaces';
 import * as TestInterfaces from 'azure-devops-node-api/interfaces/TestInterfaces';
 import { TestPoint } from 'azure-devops-node-api/interfaces/TestInterfaces';
 import * as Test from 'azure-devops-node-api/TestApi';
+import { IWorkItemTrackingApi } from 'azure-devops-node-api/WorkItemTrackingApi';
 import chalk from 'chalk';
 import { existsSync, readFileSync } from 'fs';
 
@@ -49,6 +50,11 @@ export interface AzureReporterOptions {
   attachmentsType?: TAttachmentType | undefined;
   testRunConfig?: TTestRunConfig;
   testPointMapper?: (testCase: TestCase, testPoints: TestPoint[]) => Promise<TestPoint[] | undefined>;
+}
+
+interface TestCaseToAutomate {    
+  id?: string;
+  title?: string;
 }
 
 interface TestResultsToTestRun {
@@ -106,6 +112,7 @@ class AzureDevOpsReporter implements Reporter {
   private _debug = debug('azure');
   private _debugWarning = debug('azure:warning');
   private _testApi!: Test.ITestApi;
+  private _workItemApi!: IWorkItemTrackingApi
   private _coreApi!: ICoreApi;
   private _publishedResultsCount = 0;
   private _testsAliasToBePublished: string[] = [];
@@ -325,6 +332,7 @@ class AzureDevOpsReporter implements Reporter {
             this._resolveRunId(runId);
             this._log(chalk.green(`Using run ${runId} to publish test results`));
             await this._publishTestResults(runId, this._testResultsToBePublished);
+            await this._setTestcaseAsAutomated(this._testResultsToBePublished)
           } else {
             this._isDisabled = true;
             this._rejectRunId('Failed to create test run. Reporting is disabled.');
@@ -648,6 +656,90 @@ class AzureDevOpsReporter implements Reporter {
       this._removePublished(testCase.testAlias);
       this._warning(chalk.red(error.message));
     }
+  }
+
+  private _createTestListToAssociateWithAutomation(testsResults: TTestResultsToBePublished[]): TestCaseToAutomate[] {    
+    const testCaseList: TestCaseToAutomate[] = [];
+    const regex = new RegExp(/\[([\d,\s]+)\](.*)/, 'gm');
+
+    for (const testsResult of testsResults) {  
+      const array = [...testsResult.testCase.title.matchAll(regex)];
+      const testCases = array.map(m => m[1]);
+      const title = array.map(m => m[2])[0].trim();
+      testCases.forEach((match) => { 
+        const ids = match.split(',').map((id) => id.trim());    
+        ids.forEach((match) => {    
+          testCaseList.push({
+            id: match,
+            title: title
+          });            
+        });
+      });
+    }
+    return testCaseList;
+  }
+
+  private async _setTestcaseAsAutomated(testsResults: TTestResultsToBePublished[]) {      
+    try {
+      const testCaseList = this._createTestListToAssociateWithAutomation(testsResults);
+      
+      if (!this._workItemApi) {
+        this._workItemApi = await this._connection.getWorkItemTrackingApi(); 
+      }         
+
+      for (const testCase of testCaseList) {
+        const workItem = await this._workItemApi.getWorkItem(Number(testCase.id), ['Microsoft.VSTS.TCM.AutomationStatus', 'Microsoft.VSTS.TCM.AutomatedTestName'])
+        if (workItem == null) {
+          this._log(chalk.red(`invalid test case id: ${testCase.id}`));
+          continue;
+        }
+        
+        if (workItem.fields?.['Microsoft.VSTS.TCM.AutomationStatus'] === 'Not Automated' ||
+            workItem.fields?.['Microsoft.VSTS.TCM.AutomationStatus'] === 'Planned') {
+          const patchDocument = [
+              {
+                 op: 'add',
+                 path:'/fields/Microsoft.VSTS.TCM.AutomatedTestId',
+                 value: createGuid()
+              },
+              {
+                op: 'add',
+                path: '/fields/Microsoft.VSTS.TCM.AutomatedTestName',
+                value: testCase.title
+              },
+              {
+                op: 'add',
+                path: '/fields/Microsoft.VSTS.TCM.AutomatedTestStorage',
+                value: 'DispatchUI'
+              }
+          ]
+          await this._workItemApi.updateWorkItem({}, patchDocument, workItem.id as number)
+          this._log(chalk.gray(`Test case ${workItem.id} association was created with ${testCase.title}`));
+        } else {
+          if (workItem.fields?.['Microsoft.VSTS.TCM.AutomationStatus'] === 'Automated') {
+            if(workItem.fields?.['Microsoft.VSTS.TCM.AutomatedTestName'] !== testCase.title) {
+              const patchDocument = [
+                {
+                  op: 'replace',
+                  path: '/fields/Microsoft.VSTS.TCM.AutomatedTestName',
+                  value: testCase.title
+                },
+                {
+                  op: 'replace',
+                  path: '/fields/Microsoft.VSTS.TCM.AutomatedTestStorage',
+                  value: 'DispatchUI'
+                }
+              ]
+              
+              await this._workItemApi.updateWorkItem({}, patchDocument, workItem.id as number)
+              this._log(chalk.gray(`Test case ${workItem.id} association was updated with ${testCase.title}`));
+            }
+          }
+        }
+      }      
+    } catch (error: any) { 
+      this._warning(chalk.red(error.message));
+    }    
   }
 
   private async _publishTestResults(runId: number, testsResults: TTestResultsToBePublished[]) {
