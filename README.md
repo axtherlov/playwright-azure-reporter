@@ -1,7 +1,8 @@
 # Playwright Azure Reporter
-![GitHub](https://img.shields.io/github/license/alexneo2003/playwright-azure-reporter) ![npm (scoped)](https://img.shields.io/npm/v/@alex_neo/playwright-azure-reporter) ![npm](https://img.shields.io/npm/dw/@alex_neo/playwright-azure-reporter) ![npm](https://img.shields.io/npm/dt/@alex_neo/playwright-azure-reporter)
+![GitHub](https://img.shields.io/github/license/axtherlov/playwright-azure-reporter) ![npm (scoped)](https://img.shields.io/npm/v/@axtherlov/playwright-azure-reporter) ![npm](https://img.shields.io/npm/dw/@axtherlov/playwright-azure-reporter) ![npm](https://img.shields.io/npm/dt/@axtherlov/playwright-azure-reporter)
 
 ## A must read!
+**this is based on forked version of https://github.com/alexneo2003/playwright-azure-reporter I've additionally added a functionality to **associate automatically the automated test with test case in Azure Devops
 **Since version 1.5.0 reporter allows using configurationIds to publish results for different configurations e.g. different browsers**
 **Necessarily defining `testRun.configurationIds` or/and `testPointMapper` function in reporter config, otherwise reporter will be publishing results for all configurations**
 
@@ -10,11 +11,11 @@
 Install package
 
 ```bash
-npm install @alex_neo/playwright-azure-reporter
+npm install @axtherlov/playwright-azure-reporter
 ```
 or 
 ```bash
-yarn add @alex_neo/playwright-azure-reporter
+yarn add @axtherlov/playwright-azure-reporter
 ```
 
 ## Usage
@@ -74,7 +75,7 @@ Configure Playwright Azure Reporter with `playwright-azure-reporter` package.
 
 ```typescript
 import { PlaywrightTestConfig } from '@playwright/test';
-import { AzureReporterOptions } from '@alex_neo/playwright-azure-reporter/dist/playwright-azure-reporter';
+import { AzureReporterOptions } from '@axtherlov/playwright-azure-reporter/dist/playwright-azure-reporter';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -91,7 +92,7 @@ const config: PlaywrightTestConfig = {
   reporter: [
     ['list'],
     [
-      '@alex_neo/playwright-azure-reporter',
+      '@axtherlov/playwright-azure-reporter',
       {
         orgUrl: 'https://dev.azure.com/your-organization-name',
         token: process.env.AZURE_TOKEN,
@@ -105,7 +106,7 @@ const config: PlaywrightTestConfig = {
         attachmentsType: ['screenshot', 'video', 'trace'],
         testRunConfig: {
           owner: {
-            displayName: 'Alex Neo',
+            displayName: 'Terceros Daniel',
           },
           comment: 'Playwright Test Run',
           // the configuration ids of this test run, use 
